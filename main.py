@@ -1,18 +1,31 @@
-from classes import Person, Student, Teacher, Admin
+from classes import SchoolManager
 
-# Person
-p1 = Person("Biwash Bhattarai", {'Phone': 9090909090, 'Email': 'biwashbhattarai252@gmail.com'})
-print(p1)
-
-# Student
-s1 = Student("Ram Sharma", {'Phone': 9876543210, 'Email': 'ram@school.com'}, 101)
-s1.marks['Math'] = 95
-print(s1)
-
-# Teacher
-t1 = Teacher("Sita Koirala", {'Phone': 9123456780, 'Email': 'sita@school.com'}, 201, ['Math','Science'])
-print(t1)
-
-# Admin
-a1 = Admin("Hari Sharma", {'Phone': 9112233445, 'Email':'hari@school.com'}, 301)
-print(a1)
+def main():
+    manager = SchoolManager()
+    
+    while True:
+        print("\n School Management System. \n")
+        print("\n1. Add Student")
+        print("2. List Student")
+        print("3. Update Student")
+        print("4. Delete Student")
+        print("5. Exit")
+        
+        choice = input("Enter your choice (1-5): ")
+        
+        if choice == '1':
+            manager.add_student()
+        elif choice == '2':
+            manager.list_students()
+        elif choice == '3':
+            manager.update_student()
+        elif choice == '4':
+            manager.delete_student()
+        elif choice == '5':
+            print("Exiting Bye-Bye👋")
+            break
+        else:
+            print("Invalid choice, Please choose a number between 1-5")
+            
+if __name__ == "__main__":
+    main()

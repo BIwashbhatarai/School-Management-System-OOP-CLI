@@ -1,1 +1,1 @@
-from classes import Person
+manager.add_student()
