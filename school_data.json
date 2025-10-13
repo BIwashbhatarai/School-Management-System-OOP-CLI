@@ -1,0 +1,26 @@
+{
+    "last_student_id": 1,
+    "last_teacher_id": 1,
+    "students": [
+        {
+            "name": "Biwash Bhattarai",
+            "contact": {
+                "Phone": "9815279147",
+                "Email": "biwashbhattarai352@gmail.com"
+            },
+            "role": "Student"
+        }
+    ],
+    "teachers": [
+        {
+            "name": "Sudan Rai",
+            "contact": {
+                "Phone": "9800000000",
+                "Email": "sudan32@gmail.com"
+            },
+            "role": "Teacher",
+            "teacher_id": "TCH001",
+            "subjects": []
+        }
+    ]
+}

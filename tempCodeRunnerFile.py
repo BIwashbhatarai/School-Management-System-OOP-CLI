@@ -1,1 +1,1 @@
-manager.add_student()
+        if choice == '1':
