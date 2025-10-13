@@ -310,4 +310,4 @@ class SchoolManager:
                 self.teachers.append(teacher)
             print("🗃️ Data loaded successfully!\n")
         except FileNotFoundError:
-            print('No existing data found, starting fresh!')
+            print('No existing data found, starting freshh!')
