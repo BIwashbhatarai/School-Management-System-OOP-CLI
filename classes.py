@@ -25,14 +25,51 @@ class Student(Person):
         self.__student_id = student_id
         self.marks = {}
         self.fee_status = 'Pending'
+        self.class_section = "N/A"
+    
+    def add_update_marks(self, subject ,  mark):
+        self.marks[subject] = mark
+        print(f"Marks updated for {self.name} - {subject}: {mark}")
+    
+    def calculate_grade(self):
+        if not self.marks:
+            return None
+        Avg = sum(self.marks.values()) / len(self.marks)
         
+        if Avg >= 90:
+            return "A+"
+        elif Avg >= 80:
+            return "A"
+        elif Avg >= 70:
+            return "B+"
+        elif Avg >= 60:
+            return "B"
+        elif Avg >= 50:
+            return "C"
+        else:
+            return "F"
+    
+    def pay_fee(self):
+        self.fee_status = "Paid"
+        print(f"✅ {self.name} fee status updated to paid.")
+    
+    def to_dict(self):
+        base = super().to_dict()
+        base.update({
+            "student_id": self.__student_id,
+            "marks": self.marks,
+            "fee_status": self.fee_status,
+            "class_section": self.class_section
+        })
+        return base
     def get_student_id(self):
         return self.__student_id
     def set_student_id(self, new_id):
         self.__student_id = new_id
     def __str__(self):
         base_info = super().__str__()
-        return f"{base_info}, Student ID: {self.__student_id}, Fee: {self.fee_status}"
+        grade = self.calculate_grade()
+        return f"{base_info}, Student ID: {self.__student_id}, Fee: {self.fee_status}, Marks: {self.marks}, Grade: {grade if grade else "N/A"}"
 
 class Teacher(Person):
     def __init__(self, name , contact_info, teachers_id, subject_assigned = None):
@@ -311,3 +348,53 @@ class SchoolManager:
             print("🗃️ Data loaded successfully!\n")
         except FileNotFoundError:
             print('No existing data found, starting freshh!')
+    
+    def manage_student_marks(self):
+        print("\n---Manage Student marks---\n")
+        student_id = input("Enter student ID: ")
+        stu = self.find_student_by_id(student_id)
+        
+        if not stu:
+            print(f"Student {student_id} not found")
+            return
+        while True:
+            subject = input("Enter subject name or(Press enter to finish): ").strip()
+            if not subject:
+                break
+            try:
+                marks = float(input(f"Enter marks for {subject}: "))
+                if marks < 0 or marks > 100:
+                    print("❌ Marks must be between 0-100.")
+                    continue
+            except ValueError:
+                print("❌ Invalid input. Enter a number")
+                continue
+            stu.add_update_marks(subject ,  marks)
+    
+    def manage_fee(self):
+        print("\n---Manage Student Fee---\n")
+        student_id = input("Enter student ID: ")
+        stu = self.find_student_by_id(student_id)
+        
+        if not stu:
+            print(f" student {student_id} not found")
+            return 
+        
+        print(f"Current fee status: {stu.fee_status}")
+        confirm = input("Mark fee as paid (y/n): ")
+        
+        if  confirm.lower() == 'y':
+            stu.pay_fee()
+        else:
+            print("❌ Fee update cancelled.")
+            
+    def student_report(self):
+        print("\n---Student Report---\n")
+        if not self.students:
+            print("No student found.")
+            return
+        
+        for stu in self.students:
+            grade = stu.calculate_grade() or "N/A"
+            print(f"{stu.get_student_id()} | {stu.name} | Class: {stu.class_section} | Fee: {stu.fee_status} | Marks: {stu.marks} | Grade: {grade} ")
+            

@@ -14,9 +14,12 @@ def main():
         print("6. List Teachers")
         print("7. Update Teacher")
         print("8. Delete Teacher")
-        print("9. Exit")
+        print("9. Manage Student Marks")
+        print("10. Manage Student Fee")
+        print("11. Student Reports")
+        print("12. Exit")
 
-        choice = input("Enter your choice (1-9): ")
+        choice = input("Enter your choice (1-12): ")
         
         if choice == '1':
             manager.add_student()
@@ -41,10 +44,16 @@ def main():
             manager.delete_teacher()
             manager.save_data()
         elif choice == '9':
+            manager.manage_student_marks()
+        elif choice == '10':
+            manager.manage_fee()
+        elif choice == '11':
+            manager.student_report()
+        elif choice == '12':
             print("Exiting. Bye-Bye 👋")
             break
         else:
-            print("Invalid choice, Please choose number between 1-9")
+            print("Invalid choice, Please choose number between 1-12")
 
 if __name__ == "__main__":
     main()
