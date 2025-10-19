@@ -1,5 +1,27 @@
 import json
 import os
+from datetime import datetime
+from hashlib import sha256
+import re
+from colorama import Fore, Style, init
+init(autoreset=True)
+
+
+def print_section(title, color=Fore.CYAN):
+    print("\n" + color + "-"*60)
+    print(color + f"{title.center(60)}")
+    print(color + "-"*60 + Style.RESET_ALL)
+
+
+def is_valid_email(email):
+    pattern = r'^[\w\.-]+@[\w\.-]+\.\w+$'
+    return bool (re.match(pattern,email))
+
+def is_valid_phone(phone):
+    return phone.isdigit() and len(phone)== 10
+
+def is_valid_class_section(cls):
+    return bool (re.match(r'^[A-Za-z0-9]+$', cls))
 
 class Person:
     def __init__(self, name, contact_info, role='Person'):
@@ -26,7 +48,8 @@ class Student(Person):
         self.marks = {}
         self.fee_status = 'Pending'
         self.class_section = "N/A"
-    
+        self.password = sha256('4321'.encode()).hexdigest()
+
     def add_update_marks(self, subject ,  mark):
         self.marks[subject] = mark
         print(f"Marks updated for {self.name} - {subject}: {mark}")
@@ -51,7 +74,7 @@ class Student(Person):
     
     def pay_fee(self):
         self.fee_status = "Paid"
-        print(f"✅ {self.name} fee status updated to paid.")
+        print((Fore.GREEN)+ f"✅ {self.name} fee status updated to paid.")
     
     def to_dict(self):
         base = super().to_dict()
@@ -59,7 +82,8 @@ class Student(Person):
             "student_id": self.__student_id,
             "marks": self.marks,
             "fee_status": self.fee_status,
-            "class_section": self.class_section
+            "class_section": self.class_section,
+            'password': self.password
         })
         return base
     def get_student_id(self):
@@ -69,7 +93,7 @@ class Student(Person):
     def __str__(self):
         base_info = super().__str__()
         grade = self.calculate_grade()
-        return f"{base_info}, Student ID: {self.__student_id}, Fee: {self.fee_status}, Marks: {self.marks}, Grade: {grade if grade else "N/A"}"
+        return f"{base_info}, Student ID: {self.__student_id}, Fee: {self.fee_status}, Marks: {self.marks}, Grade: {grade if grade else 'N/A'}"
 
 class Teacher(Person):
     def __init__(self, name , contact_info, teachers_id, subject_assigned = None):
@@ -79,6 +103,7 @@ class Teacher(Person):
             subject_assigned = []
         self.subject_assigned = subject_assigned
         self.role_description = "Teacher"
+        self.password = sha256('1234'.encode()).hexdigest()
         
     def get_teacher_id(self):
         return self.__teachers_id
@@ -99,32 +124,42 @@ class Teacher(Person):
             'contact': self.contact_info,
             'role': self.role,
             'teacher_id': self.__teachers_id,
-            'subjects': self.subject_assigned
+            'subjects': self.subject_assigned,
+            'role-description': self.role_description,
+            'password': self.password
         }
     def __str__(self):
         base_info = super().__str__()
         return f"{base_info}, Teachers_ID: {self.__teachers_id}, Subject_Assigned: {self.subject_assigned}"
     
 class Admin(Person):
-    def __init__(self, name , contact_info, admin_id):
+    def __init__(self, name , contact_info, admin_id, username='admin', password='1234'):
         super().__init__( name, contact_info, role='Admin')
+        self.username = username
+        self.password = sha256(password.encode()).hexdigest()
         self.__admin_id = admin_id
         self.permissions = ["Manage Students", "Manage Teachers", "Generate Reports"]
+    
+    def authenticate(self, username, password):
+        return self.username == username and self.password == sha256(password.encode()).hexdigest()
+    
     def get_admin_id(self):
         return self.__admin_id
+    
     def set_admin_id(self,new_id):
         self.__admin_id = new_id
+        
     def __str__(self):
         base_info = super().__str__()
         return f"{base_info}, Admin ID: {self.__admin_id}, Permissions: {self.permissions} " 
 
 class SchoolManager:
-    def __init__(self):
+    def __init__(self, data_file = 'school_data.json'):
         self.students = []
-        self.last_student_id = 0
         self.teachers = []
+        self.last_student_id = 0
         self.last_teacher_id = 0
-        self.data_file = 'school_data.json'
+        self.data_file = data_file
     
     def generate_student_id(self):
         self.last_student_id += 1
@@ -133,14 +168,74 @@ class SchoolManager:
     def generate_teacher_id(self):
         self.last_teacher_id += 1
         return f"TCH{self.last_teacher_id:03d}"
+    def backup_data(self):
+        if os.path.exists(self.data_file):
+            backup_file = f"backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"   
+            with open(self.data_file, 'r') as f:
+                data = f.read()
+            with open(backup_file,'w') as f:
+                f.write(data)
+    def save_data(self):
+        data = {
+            'last_student_id': self.last_student_id,
+            'last_teacher_id': self.last_teacher_id,
+            'students': [stu.to_dict() for stu in self.students],
+            'teachers': [t.to_dict() for t in self.teachers]
+        }
         
-        
+        with open(self.data_file, 'w') as f:
+            json.dump(data, f, indent=4)
+        print(Fore.GREEN+ "🗃️ Data saved successfully!")
+            
+    def load_data(self):
+        if not os.path.exists(self.data_file) or os.path.getsize(self.data_file) == 0:
+            print("No existing datafile found. Starting fresh!")
+            return 
+        try:
+            with open(self.data_file, 'r') as f:
+                data = json.load(f)
+            self.last_student_id = data.get('last_student_id', 0)
+            self.last_teacher_id = data.get('last_teacher_id', 0)
+            
+            self.students = []
+            for s in data.get('students', []):
+                student_id = s.get('student_id') or self.generate_student_id()
+                stu = Student(s['name'], s['contact'], student_id)
+                stu.marks = s.get('marks', {})
+                stu.fee_status = s.get('fee_status', 'Pending')
+                stu.class_section = s.get('class_section', 'N/A')
+                self.students.append(stu)
+
+            self.teachers = []
+            for t_data in data.get('teachers', []):
+                teacher_id = t_data.get('teacher_id') or self.generate_teacher_id()
+                teacher = Teacher(t_data['name'], t_data['contact'], teacher_id, t_data.get('subjects', []))
+                teacher.role_description = t_data.get('role', 'Teacher')
+                self.teachers.append(teacher)
+            print(Fore.GREEN +" 🗃️ Data loaded successfully!\n")
+        except FileNotFoundError:
+                print(Fore.RED +'❌ No existing data found, starting fresh!')   
+                        
     def add_student(self):
-        print("\n --- Add Students --- \n")
+        print_section("Add Student",Fore.GREEN)
         name = input("Enter student name :")
-        phone = input("Enter phone number :" )
-        email = input("Enter email: ")
-        class_section = input("Enter class section: ")
+        while True:
+            phone = input("Enter phone number :" )
+            if is_valid_phone(phone):
+                break
+            print(Fore.RED + "❌ Invalid Phone, must be 10 digits.")
+        while True:
+            email = input("Enter email: ")
+            
+            if is_valid_email(email):
+                break
+            print(Fore.RED + "❌ Invalid email format.")
+            
+        while True:
+            class_section = input("Enter class section: ")
+            if is_valid_class_section(class_section):
+                break
+            print(Fore.RED  + "❌ Invalid class-section. Use letters/numbers only.")
         
         Student_id = self.generate_student_id()
         
@@ -149,21 +244,21 @@ class SchoolManager:
         new_student = Student(name, contact_info, Student_id)
         new_student.class_section = class_section
         self.students.append(new_student)
-        print(f"✅ Student {name} ({Student_id}) added successfully.\n ")
-    
+        print( (Fore.GREEN) + f"✅ Student {name} ({Student_id}) added successfully.\n ")
+        
     def list_students(self):
-        print("\n--- All Students ---\n")
+        print_section("All Students",Fore.GREEN)
         if not self.students:
-            print("No students found.\n")
+            print(Fore.RED + "❌ No students found.\n")
             return
 
         # Header
-        print(f"{'ID':<8} {'Name':<20} {'Class':<10} {'Phone':<15} {'Fee':<10} {'Marks':<10}")
-        print('-' * 75)
+        print(Fore.YELLOW+f"{'ID':<8} {'Name':<20} {'Class-Section':<20} {'Phone':<15} {'Fee':<10} {'Marks':<10}")
+        print('-' * 90)
 
         # Data
         for stu in self.students:
-            print(f"{stu.get_student_id():<8} {stu.name:<20} {getattr(stu, 'class_section', 'N/A'):<10}"
+            print(Fore.YELLOW+f"{stu.get_student_id():<8} {stu.name:<20} {getattr(stu, 'class_section', 'N/A'):<20}"
                 f"{stu.contact_info['Phone']:<15} {stu.fee_status:<10} {stu.marks}")
         print()
 
@@ -174,12 +269,12 @@ class SchoolManager:
         return None
 
     def update_student(self):
-        print("\n--- Update Student ---")
+        print_section("Update Student",Fore.GREEN)
         student_id = input("Enter Student ID to update: ")
         stu = self.find_student_by_id(student_id)
         
         if not stu:
-            print(f"❌ Student {student_id} not found.\n")
+            print( (Fore.RED )+ f"❌ Student {student_id} not found.\n")
             return
         
         new_name = input(f"Current Name: {stu.name}\n Enter new name (Press enter to keep current): ")
@@ -187,37 +282,46 @@ class SchoolManager:
             stu.name = new_name
             
         new_phone = input(f"Current Phone: {stu.contact_info['Phone']}\n Enter new phone (press enter to keep current): ")
-        if new_phone.strip():
+        if new_phone.strip() and is_valid_phone(new_phone):
             stu.contact_info['Phone'] = new_phone
         
         new_class = input(f"Current Class/Section: {getattr(stu, 'class_section', 'N/A')}\nEnter new Class Section (press enter to keep current): ")
 
-        if new_class.strip():
+        if new_class.strip() and is_valid_class_section(new_class):
             stu.class_section = new_class
-        print(f"✅ Student {stu.get_student_id()} updated successfully!\n")
+        print( (Fore.GREEN)+ f"✅ Student {stu.get_student_id()} updated successfully!\n")
 
     def delete_student(self):
-        print("\n--- Delete Student ---")
+        print_section("Delete Student",Fore.GREEN)
         student_id = input("Enter Student ID to delete: ")
         stu = self.find_student_by_id(student_id)
         
         if not stu:
-            print(f"❌ Student {student_id} not found.\n")
+            print( (Fore.RED ) + f"❌ Student {student_id} not found.\n")
             return
         
         confirm = input(f"Are you sure want to delete {stu.name} ({stu.get_student_id()})? (y/n)")
         if confirm.lower() == 'y':
             self.students.remove(stu)
-            print(f"Student {student_id} deleted successfully\n")
+            print( (Fore.GREEN )+f"Student {student_id} deleted successfully\n")
         else:
-            print(f"❌ Deletion cancelled\n")
+            print(Fore.RED +"❌ Deletion cancelled\n")
     
     def add_teachers(self):
-        print("\n--- Add Teacher ----\n")
+        print_section("Add Teacher",Fore.GREEN)
         name = input("Enter teacher name :")
-        phone = input("Enter phone number :" )
-        email = input("Enter email: ")
-        
+        while True:
+            phone = input("Enter phone number :" )
+            if is_valid_phone(phone):
+                break
+            print(Fore.RED +"❌ Invalid Phone, must be 10 digits.")
+        while True:
+            email = input("Enter email: ")
+            
+            if is_valid_email(email):
+                break
+            print(Fore.RED + "❌ Invalid email format.")
+            
         role = input("Enter role (Teacher/Liberian/Accountant/etc)")
         
         teacher_id =  self.generate_teacher_id()
@@ -238,17 +342,17 @@ class SchoolManager:
         
     
     def list_teachers(self):
-        print("\n--- All Teachers ---\n")
+        print_section("All Teachers",Fore.GREEN)
         if not self.teachers:
-            print("No teachers found.\n")
+            print( Fore.RED + "❌ No teachers found.\n")
             return
         
         #header 
-        print(f"{'ID':<8} {'Name':<20} {'Role':<15} {'Phone':<15} {'Subjects':<30}")
+        print( Fore.YELLOW+ f"{'ID':<8} {'Name':<20} {'Role':<15} {'Phone':<15} {'Subjects':<30}")
         print('-' *90)
         
         for t in self.teachers:
-            print(f"{t.get_teacher_id():<8} {t.name:<20} {t.contact_info['Phone']:<15} {','.join(t.subject_assigned):<30}")
+            print(f"{t.get_teacher_id():<8} {t.name:<20} {t.role_description:<15} {t.contact_info['Phone']:<15} {','.join(t.subject_assigned):<30}")
         print()
     
     def find_teacher_id(self, teacher_id):
@@ -258,12 +362,12 @@ class SchoolManager:
         return None
     
     def update_teachers(self):
-        print("\n---Update Teacher ---\n")
+        print_section("Update Teacher",Fore.GREEN)
         teacher_id = input("Enter teacher id to update: ")
         t = self.find_teacher_id(teacher_id)
         
         if not t:
-            print(f"❌ Teacher {teacher_id} not found")
+            print( (Fore.RED )+f"❌ Teacher {teacher_id} not found")
             return
         
         new_name = input(f"Current name: {t.name}\nEnter new name(Press enter to keep current.\n)")
@@ -271,20 +375,20 @@ class SchoolManager:
             t.name = new_name
         
         new_phone = input(f"Current phone: {t.contact_info['Phone']}\nEnter new Phone (Press enter to keep current,)")
-        if new_phone.strip():
+        if new_phone.strip() and is_valid_phone(new_phone):
             t.contact_info['Phone'] = new_phone
             
         new_email = input(f"Current email: {t.contact_info['Email']}\nEnter new Email (Press enter to keep current,)")
-        if new_email.strip():
+        if new_email.strip() and is_valid_email(new_email):
             t.contact_info['Email'] = new_email
             
         new_role = input(f"Current role: {t.role_description}\nEnter new role (Press enter to keep current.)")
         if new_role.strip():
             t.role_description = new_role
         
-        print("\n--- Update Subjects ---")
+        print_section("Update Subject",Fore.GREEN)
         while True:
-            choice = input("Do you want to (A)dd or (R)emove or (F)inish?: ")
+            choice = input("Do you want to (A)dd or (R)emove or (U)pdate or (F)inish?: ")
             choice = choice.lower()
             if choice == 'f':
                 break
@@ -296,61 +400,38 @@ class SchoolManager:
                 sub = input("Enter subject to remove: ").strip()
                 if sub:
                     t.remove_subject(sub)
-        print(f"✅ Teacher {t.get_teacher_id()} updated successfully!\n. ")        
+            elif choice == 'u':
+                old_subject = input("Enter old subject to update: ").strip()
+                if old_subject in t.subject_assigned:
+                    new_sub = input(f"Enter new name for subject: {old_subject}: ").strip()
+                    if new_sub:
+                        index = t.subject_assigned.index(old_subject)
+                        t.subject_assigned[index] = new_sub
+                        print( (Fore.RED )+(f"✅ Subject {old_subject} updated to {new_sub}"))
+                else:
+                    print((Fore.RED )+ f"❌ Subject {old_subject} not found in teacher's assigned subjects.")
+        print(Fore.GREEN + f"✅ Teacher {t.get_teacher_id()} updated successfully!\n")
+
+         
     
     def delete_teacher(self):
-        print("\n--- Delete Teacher ---\n")
+        print_section("Delete Teacher",Fore.GREEN)
         teacher_id = input("Enter teacher id to delete: ")
         t =  self.find_teacher_id(teacher_id)
         if not t:
-            print(f"❌ Teacher {teacher_id} not found.\n")
+            print( (Fore.RED )+f"❌ Teacher {teacher_id} not found.\n")
             return
         
         confirm = input(f"Are you sure want to delete {t.name} {t.get_teacher_id()}? (y/n): ")
         if confirm.lower() == 'y':
             self.teachers.remove(t)
-            print(f"✅ Teacher {t.get_teacher_id()} deleted Successfully!\n")
+            print((Fore.GREEN ) + f"✅ Teacher {t.get_teacher_id()} deleted Successfully!\n")
         else:
-            print("❌ Deletion cancelled.\n")
+            print(Fore.RED + "❌ Deletion cancelled.\n")
         
-    def save_data(self):
-        data = {
-            'last_student_id': self.last_student_id,
-            'last_teacher_id': self.last_teacher_id,
-            'students': [stu.to_dict() for stu in self.students],
-            'teachers': [t.to_dict() for t in self.teachers]
-        }
-        
-        with open(self.data_file, 'w') as f:
-            json.dump(data, f, indent=4)
-        print("🗃️  Data saved successfully!")
-        
-    def load_data(self):
-        try:
-            with open(self.data_file, 'r') as f:
-                data = json.load(f)
-            self.last_student_id = data.get('last_student_id', 0)
-            self.last_teacher_id = data.get('last_teacher_id', 0)
-            
-            self.students = []
-            for s in data.get('students', []):
-                stu = Student(s['name'], s['contact'], s['student_id'])
-                stu.marks = s.get('marks', {})
-                stu.fee_status = s.get('fee_status', 'Pending')
-                stu.class_section = s.get('class_section', 'N/A')
-                self.students.append(stu)
-            
-            self.teachers = []
-            for t_data in data.get('teachers', []):
-                teacher = Teacher(t_data['name'], t_data['contact'], t_data['teacher_id'], t_data.get('subjects', []))
-                teacher.role_description = t_data.get('role', 'Teacher')
-                self.teachers.append(teacher)
-            print("🗃️ Data loaded successfully!\n")
-        except FileNotFoundError:
-            print('No existing data found, starting freshh!')
     
     def manage_student_marks(self):
-        print("\n---Manage Student marks---\n")
+        print_section("Manage Student Marks",Fore.GREEN)
         student_id = input("Enter student ID: ")
         stu = self.find_student_by_id(student_id)
         
@@ -364,15 +445,15 @@ class SchoolManager:
             try:
                 marks = float(input(f"Enter marks for {subject}: "))
                 if marks < 0 or marks > 100:
-                    print("❌ Marks must be between 0-100.")
+                    print(Fore.RED +"❌ Marks must be between 0-100.")
                     continue
             except ValueError:
-                print("❌ Invalid input. Enter a number")
+                print(Fore.RED +"❌ Invalid input. Enter a number")
                 continue
             stu.add_update_marks(subject ,  marks)
     
     def manage_fee(self):
-        print("\n---Manage Student Fee---\n")
+        print_section("Manage Student Fee",Fore.GREEN)
         student_id = input("Enter student ID: ")
         stu = self.find_student_by_id(student_id)
         
@@ -386,12 +467,23 @@ class SchoolManager:
         if  confirm.lower() == 'y':
             stu.pay_fee()
         else:
-            print("❌ Fee update cancelled.")
-            
+            print(Fore.RED + "❌ Fee update cancelled.")
+    
+    def view_student_report(self, student):
+        grade = student.calculate_grade() or 'N/A'
+        
+        print_section("My Report",Fore.GREEN)
+        print(f"Student ID: {student.get_student_id()}")
+        print(f"Name: {student.name}")
+        print(f"Class: {student.class_section}")
+        print(f"Fee Status: {student.fee_status}")
+        print(f"Student Marks: {student.marks}")
+        print(f"Grade: {grade}")
+        
     def student_report(self):
-        print("\n---Student Report---\n")
+        print_section("Student Report",Fore.GREEN)
         if not self.students:
-            print("No student found.")
+            print(Fore.RED + "❌ No student found.")
             return
         
         for stu in self.students:

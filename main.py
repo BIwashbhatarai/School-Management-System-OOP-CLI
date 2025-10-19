@@ -1,9 +1,17 @@
-from classes import SchoolManager
+from classes import SchoolManager, Admin
+import sys
 
-def main():
-    manager = SchoolManager()
-    manager.load_data()
-    
+manager = SchoolManager()
+manager.load_data()
+
+admin = Admin(
+    name="Super Admin", 
+    contact_info={"Phone": "0000000000", "Email": "admin@example.com"}, 
+    admin_id="ADM001"
+)
+
+
+def admin_menu():
     while True:
         print("\n--- School Management System ---\n")
         print("1. Add Student")
@@ -14,12 +22,11 @@ def main():
         print("6. List Teachers")
         print("7. Update Teacher")
         print("8. Delete Teacher")
-        print("9. Manage Student Marks")
-        print("10. Manage Student Fee")
-        print("11. Student Reports")
-        print("12. Exit")
+        print("9. Manage Student Fee")
+        print("10. Student Reports")
+        print("11. Log Out")
 
-        choice = input("Enter your choice (1-12): ")
+        choice = input("Enter your choice (1-11): ")
         
         if choice == '1':
             manager.add_student()
@@ -44,16 +51,85 @@ def main():
             manager.delete_teacher()
             manager.save_data()
         elif choice == '9':
-            manager.manage_student_marks()
-        elif choice == '10':
             manager.manage_fee()
-        elif choice == '11':
+        elif choice == '10':
             manager.student_report()
-        elif choice == '12':
-            print("Exiting. Bye-Bye 👋")
+        elif choice == '11':
+            print("Logging out...")
             break
         else:
-            print("Invalid choice, Please choose number between 1-12")
+            print("Invalid choice, Try again!")
 
-if __name__ == "__main__":
-    main()
+def teacher_menu(teacher):
+    while True:
+        print(f"\n---Teacher Portal ({teacher.name})---\n")   
+        print("1. View Students.")
+        print("2. Add/Update Student Marks")
+        print("3. Log Out.")
+        
+        choice = input("Enter your choice (1-3): ")
+        
+        if choice =='1':
+            manager.list_students()
+        elif choice == '2':
+            manager.manage_student_marks()
+            manager.save_data()
+        elif choice =='3':
+            break
+        else:
+            print('Invalid choice')
+            
+
+def Student_menu(student):
+    while True:
+        print(f"\n---Student Portal ({student.name})---\n")   
+        print("1. View My Report.")
+        print("2. Log Out.")
+        
+        choice = input("Enter your choice (1-2): ")
+        
+        if choice =='1':
+            manager.view_student_report(student)
+        elif choice =='2':
+            print("Logging out...")
+            break
+        else:
+            print('Invalid choice')
+def Login():
+    print("\n---Login Portal---\n1. Admin\n2. Teacher\n3. Student")
+    choice = input("Enter your choice (1-3): ")
+    
+    if choice == '1':
+        username = input("Enter username: ")
+        password = input("Enter password: ")
+        if admin.authenticate(username,password):
+            print("✅ Login Successful! Welcome, Admin.")
+            admin_menu()
+        else:
+            print("❌ Invalid Credentials!")
+            sys.exit()
+    elif choice == '2':
+        tid = input("Teacher Id: ")
+        password = input("Password: ")
+        
+        teacher = next((t for t in manager.teachers if t.get_teacher_id() == tid), None)
+        if teacher and password == '1234':
+            teacher_menu(teacher)
+        else:
+            print("Invalid Credentials.")
+    elif choice == '3':
+        sid = input("Student ID: ")
+        password = input("Password: ")
+        
+        student = next((s for s in manager.students if s.get_student_id() == sid), None)
+        
+        if student and password == '4321':
+            Student_menu(student)
+        else:
+            print("Invalid Credentials.")
+    else:
+        print("Invalid choice. Exiting...")
+        sys.exit()
+
+if __name__ == '__main__':
+    Login()

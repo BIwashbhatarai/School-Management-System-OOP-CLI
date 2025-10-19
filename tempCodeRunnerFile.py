@@ -1,1 +1,1 @@
-        if choice == '1':
+sys.exit()
