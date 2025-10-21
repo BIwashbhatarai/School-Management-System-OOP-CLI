@@ -1,5 +1,6 @@
 from classes import SchoolManager, Admin
 import sys
+from hashlib import sha256
 
 manager = SchoolManager()
 manager.load_data()
@@ -9,8 +10,6 @@ admin = Admin(
     contact_info={"Phone": "0000000000", "Email": "admin@example.com"}, 
     admin_id="ADM001"
 )
-
-
 def admin_menu():
     while True:
         print("\n--- School Management System ---\n")
@@ -24,9 +23,10 @@ def admin_menu():
         print("8. Delete Teacher")
         print("9. Manage Student Fee")
         print("10. Student Reports")
-        print("11. Log Out")
+        print("11. Change Password")
+        print("12. Log Out")
 
-        choice = input("Enter your choice (1-11): ")
+        choice = input("Enter your choice (1-12): ")
         
         if choice == '1':
             manager.add_student()
@@ -55,6 +55,9 @@ def admin_menu():
         elif choice == '10':
             manager.student_report()
         elif choice == '11':
+            admin.change_password()
+            manager.save_data()
+        elif choice == '12':
             print("Logging out...")
             break
         else:
@@ -65,9 +68,10 @@ def teacher_menu(teacher):
         print(f"\n---Teacher Portal ({teacher.name})---\n")   
         print("1. View Students.")
         print("2. Add/Update Student Marks")
-        print("3. Log Out.")
+        print("3. Change Password")
+        print("4. Log Out.")
         
-        choice = input("Enter your choice (1-3): ")
+        choice = input("Enter your choice (1-4): ")
         
         if choice =='1':
             manager.list_students()
@@ -75,6 +79,9 @@ def teacher_menu(teacher):
             manager.manage_student_marks()
             manager.save_data()
         elif choice =='3':
+            teacher.change_password()
+            manager.save_data()
+        elif choice =='4':
             break
         else:
             print('Invalid choice')
@@ -84,13 +91,17 @@ def Student_menu(student):
     while True:
         print(f"\n---Student Portal ({student.name})---\n")   
         print("1. View My Report.")
-        print("2. Log Out.")
+        print("2. Change Password.")
+        print("3. Log Out.")
         
-        choice = input("Enter your choice (1-2): ")
+        choice = input("Enter your choice (1-3): ")
         
         if choice =='1':
             manager.view_student_report(student)
-        elif choice =='2':
+        elif choice == '2':
+            student.change_password()
+            manager.save_data()
+        elif choice =='3':
             print("Logging out...")
             break
         else:
@@ -113,7 +124,7 @@ def Login():
         password = input("Password: ")
         
         teacher = next((t for t in manager.teachers if t.get_teacher_id() == tid), None)
-        if teacher and password == '1234':
+        if teacher and sha256(password.encode()).hexdigest() == teacher.password:
             teacher_menu(teacher)
         else:
             print("Invalid Credentials.")
@@ -123,7 +134,7 @@ def Login():
         
         student = next((s for s in manager.students if s.get_student_id() == sid), None)
         
-        if student and password == '4321':
+        if student and sha256(password.encode()).hexdigest() == student.password:
             Student_menu(student)
         else:
             print("Invalid Credentials.")
@@ -132,4 +143,19 @@ def Login():
         sys.exit()
 
 if __name__ == '__main__':
-    Login()
+    while True:
+        print("\n--- SCHOOL MANAGEMENT SYSTEM ---\n")
+        print("1. Login")
+        print("2. Exit")
+        
+        main_choice = input("Enter Choice: ")
+        
+        if main_choice == '1':
+            Login()
+        elif main_choice == 2:
+            print("Exiting program. Goodbye!")
+            manager.backup_data()
+            manager.save_data()
+            break
+        else:
+            print("❌ Invalid choice, Try again.")

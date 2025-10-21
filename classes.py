@@ -6,6 +6,8 @@ import re
 from colorama import Fore, Style, init
 init(autoreset=True)
 
+from tabulate import tabulate
+
 
 def print_section(title, color=Fore.CYAN):
     print("\n" + color + "-"*60)
@@ -94,7 +96,20 @@ class Student(Person):
         base_info = super().__str__()
         grade = self.calculate_grade()
         return f"{base_info}, Student ID: {self.__student_id}, Fee: {self.fee_status}, Marks: {self.marks}, Grade: {grade if grade else 'N/A'}"
-
+    
+    def change_password(self):
+        current = input("Enter current password: ")
+        if sha256(current.encode()).hexdigest() != self.password:
+            print(Fore.RED + "❌ Current password incorrect!")
+            return 
+        new_pass = input("Enter new password: ")
+        confirm = input("Confirm the password: ")
+        
+        if new_pass != confirm:
+            print( Fore.RED + "❌ New password do not match.")
+            return
+        self.password = sha256(new_pass.encode()).hexdigest()
+        print(Fore.GREEN + "✅ Password Updated Successfully!")
 class Teacher(Person):
     def __init__(self, name , contact_info, teachers_id, subject_assigned = None):
         super().__init__( name, contact_info, role='Teacher')
@@ -132,6 +147,19 @@ class Teacher(Person):
         base_info = super().__str__()
         return f"{base_info}, Teachers_ID: {self.__teachers_id}, Subject_Assigned: {self.subject_assigned}"
     
+    def change_password(self):
+        current = input("Enter current password: ")
+        if sha256(current.encode()).hexdigest() != self.password:
+            print(Fore.RED + "❌ Current password incorrect!")
+            return 
+        new_pass = input("Enter new password: ")
+        confirm = input("Confirm the password: ")
+        
+        if new_pass != confirm:
+            print( Fore.RED + "❌ New password do not match.")
+            return
+        self.password = sha256(new_pass.encode()).hexdigest()
+        print(Fore.GREEN + "✅ Password Updated Successfully!")
 class Admin(Person):
     def __init__(self, name , contact_info, admin_id, username='admin', password='1234'):
         super().__init__( name, contact_info, role='Admin')
@@ -152,12 +180,26 @@ class Admin(Person):
     def __str__(self):
         base_info = super().__str__()
         return f"{base_info}, Admin ID: {self.__admin_id}, Permissions: {self.permissions} " 
-
+    
+    def change_password(self):
+        current = input("Enter current password: ")
+        if sha256(current.encode()).hexdigest() != self.password:
+            print( Fore.RED + "❌ Current Password incorrect")
+            return
+        new_pass = input("Enter new password: ")
+        confirm = input("Confirm new password: ")
+        
+        if new_pass != confirm:
+            print( Fore.RED +'❌ Password do not match!')
+            return
+        self.password = sha256(new_pass.encode()).hexdigest() 
+        print(Fore.GREEN +"✅ Password updated successfully!")
+    
 class SchoolManager:
     def __init__(self, data_file = 'school_data.json'):
         self.students = []
         self.teachers = []
-        self.last_student_id = 0
+        self.last_student_id = 0  
         self.last_teacher_id = 0
         self.data_file = data_file
     
@@ -204,13 +246,15 @@ class SchoolManager:
                 stu.marks = s.get('marks', {})
                 stu.fee_status = s.get('fee_status', 'Pending')
                 stu.class_section = s.get('class_section', 'N/A')
+                stu.password = s.get('password', sha256('4321'.encode()).hexdigest())
                 self.students.append(stu)
 
             self.teachers = []
             for t_data in data.get('teachers', []):
                 teacher_id = t_data.get('teacher_id') or self.generate_teacher_id()
                 teacher = Teacher(t_data['name'], t_data['contact'], teacher_id, t_data.get('subjects', []))
-                teacher.role_description = t_data.get('role', 'Teacher')
+                teacher.role_description = t_data.get('role-description ', 'Teacher')
+                teacher.password = t_data.get('password',sha256('1234'.encode()).hexdigest())
                 self.teachers.append(teacher)
             print(Fore.GREEN +" 🗃️ Data loaded successfully!\n")
         except FileNotFoundError:
@@ -220,22 +264,22 @@ class SchoolManager:
         print_section("Add Student",Fore.GREEN)
         name = input("Enter student name :")
         while True:
-            phone = input("Enter phone number :" )
+            phone = input("Enter phone number: " )
             if is_valid_phone(phone):
                 break
-            print(Fore.RED + "❌ Invalid Phone, must be 10 digits.")
+            print(Fore.RED + "❌ Invalid Phone, must be 10 digits, e.g.9878567167")
+            
         while True:
             email = input("Enter email: ")
-            
             if is_valid_email(email):
                 break
-            print(Fore.RED + "❌ Invalid email format.")
+            print(Fore.RED + "❌ Invalid email format, must be like user@gmail.com")
             
         while True:
-            class_section = input("Enter class section: ")
+            class_section = input("Enter class section (e.g., 10-A)")
             if is_valid_class_section(class_section):
                 break
-            print(Fore.RED  + "❌ Invalid class-section. Use letters/numbers only.")
+            print(Fore.RED  + "❌ Invalid class-section! Format: 10-A, 12-B.")
         
         Student_id = self.generate_student_id()
         
@@ -244,7 +288,7 @@ class SchoolManager:
         new_student = Student(name, contact_info, Student_id)
         new_student.class_section = class_section
         self.students.append(new_student)
-        print( (Fore.GREEN) + f"✅ Student {name} ({Student_id}) added successfully.\n ")
+        print(Fore.GREEN + f"✅ Student {name} ({Student_id}) added successfully.\n ")
         
     def list_students(self):
         print_section("All Students",Fore.GREEN)
@@ -252,14 +296,15 @@ class SchoolManager:
             print(Fore.RED + "❌ No students found.\n")
             return
 
-        # Header
-        print(Fore.YELLOW+f"{'ID':<8} {'Name':<20} {'Class-Section':<20} {'Phone':<15} {'Fee':<10} {'Marks':<10}")
-        print('-' * 90)
-
-        # Data
+        table = []
+        
         for stu in self.students:
-            print(Fore.YELLOW+f"{stu.get_student_id():<8} {stu.name:<20} {getattr(stu, 'class_section', 'N/A'):<20}"
-                f"{stu.contact_info['Phone']:<15} {stu.fee_status:<10} {stu.marks}")
+            grade = stu.calculate_grade() or 'N/A'
+            fee_color = Fore.RED if stu.fee_status == 'Pending' else Fore.GREEN
+            grade_color = Fore.RED if grade == 'F' else Fore.GREEN
+            table.append([stu.get_student_id(), stu.name, stu.class_section, stu.contact_info['Phone'], fee_color + stu.fee_status + Style.RESET_ALL, stu.marks, grade_color + grade + Style.RESET_ALL])
+        headers = ['ID', 'Name', 'Class_Section', 'Phone', 'Fee', 'Marks', 'Grade' ]
+        print(tabulate(table, headers, tablefmt= 'fancy-grid', stralign='center'))
         print()
 
     def find_student_by_id(self, student_id):
@@ -347,12 +392,13 @@ class SchoolManager:
             print( Fore.RED + "❌ No teachers found.\n")
             return
         
-        #header 
-        print( Fore.YELLOW+ f"{'ID':<8} {'Name':<20} {'Role':<15} {'Phone':<15} {'Subjects':<30}")
-        print('-' *90)
+       
+        table = []
         
         for t in self.teachers:
-            print(f"{t.get_teacher_id():<8} {t.name:<20} {t.role_description:<15} {t.contact_info['Phone']:<15} {','.join(t.subject_assigned):<30}")
+            table.append([t.get_teacher_id(), t.name, t.role_description, t.contact_info['Phone'], ''.join(t.subject_assigned)])
+        headers = ['ID', 'Name', 'Class_Section', 'Phone', 'Fee', 'Marks', 'Grade' ]
+        print(tabulate(table, headers, tablefmt= 'fancy-grid', stralign='center'))
         print()
     
     def find_teacher_id(self, teacher_id):
