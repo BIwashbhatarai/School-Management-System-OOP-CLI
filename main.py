@@ -24,9 +24,14 @@ def admin_menu():
         print("9. Manage Student Fee")
         print("10. Student Reports")
         print("11. Change Password")
-        print("12. Log Out")
+        print("12. Search Students")
+        print("13. mark_attendance")
+        print("14. report_top_students")
+        print("15. report_by_fee")
+        print("16. report_by_class")
+        print("17. Log Out")
 
-        choice = input("Enter your choice (1-12): ")
+        choice = input("Enter your choice (1-17): ")
         
         if choice == '1':
             manager.add_student()
@@ -58,6 +63,16 @@ def admin_menu():
             admin.change_password()
             manager.save_data()
         elif choice == '12':
+            manager.search_students()
+        elif choice == '13':
+            manager.mark_attendance()
+        elif choice == '14':
+            manager.report_top_students()
+        elif choice == '15':
+            manager.report_by_fee()
+        elif choice == '16':
+            manager.report_by_class()
+        elif choice == '17':
             print("Logging out...")
             break
         else:
@@ -152,7 +167,7 @@ if __name__ == '__main__':
         
         if main_choice == '1':
             Login()
-        elif main_choice == 2:
+        elif main_choice == '2':
             print("Exiting program. Goodbye!")
             manager.backup_data()
             manager.save_data()

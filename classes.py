@@ -110,6 +110,7 @@ class Student(Person):
             return
         self.password = sha256(new_pass.encode()).hexdigest()
         print(Fore.GREEN + "✅ Password Updated Successfully!")
+        
 class Teacher(Person):
     def __init__(self, name , contact_info, teachers_id, subject_assigned = None):
         super().__init__( name, contact_info, role='Teacher')
@@ -202,7 +203,11 @@ class SchoolManager:
         self.last_student_id = 0  
         self.last_teacher_id = 0
         self.data_file = data_file
-    
+        self.attendance = {}
+        
+        self.load_data()
+        self.load_attendance()
+        
     def generate_student_id(self):
         self.last_student_id += 1
         return f"STU{self.last_student_id:03d}"
@@ -397,7 +402,7 @@ class SchoolManager:
         
         for t in self.teachers:
             table.append([t.get_teacher_id(), t.name, t.role_description, t.contact_info['Phone'], ''.join(t.subject_assigned)])
-        headers = ['ID', 'Name', 'Class_Section', 'Phone', 'Fee', 'Marks', 'Grade' ]
+        headers = ['ID','Name','Role','Phone','Subjects']
         print(tabulate(table, headers, tablefmt= 'fancy-grid', stralign='center'))
         print()
     
@@ -535,4 +540,196 @@ class SchoolManager:
         for stu in self.students:
             grade = stu.calculate_grade() or "N/A"
             print(f"{stu.get_student_id()} | {stu.name} | Class: {stu.class_section} | Fee: {stu.fee_status} | Marks: {stu.marks} | Grade: {grade} ")
+    
+    def report_by_class(self):
+        print_section("📘 CLASS-WISE STUDENT REPORT 📘", Fore.CYAN)
+        
+        if not self.students:
+            print(Fore.RED + "❌ No students found.\n")
+            return 
+        
+        class_name = input("Enter class/section to view (e.g. 10-A)").strip().lower()
+        
+        filtered_students = [stu for stu in self.students if stu.class_section.lower() == class_name]
+        
+        
+        if not filtered_students:
+            print(Fore.RED + f"❌ No students found in class {class_name.upper()}.\n")
+            return
+        
+        table = []
+        for stu in filtered_students:
+            grade = stu.calculate_grade() or 'N/A'
             
+            table.append([
+                stu.get_student_id(),
+                stu.name,
+                stu.class_section,
+                stu.fee_status,
+                grade
+            ])
+        print("\n" + tabulate(table, headers= ['ID', 'Name', 'Class', 'Fee', 'Grade'], tablefmt='fancy_grid', stralign='center'))
+        
+    def report_by_fee(self):
+        print_section('💰 FEE-WISE STUDENT REPORT 💰 ', Fore.CYAN)
+        
+        if not self.students:
+            print(Fore.RED + "❌ No students found.\n")
+            return 
+        
+        paid_students = [stu for stu in self.students if stu.fee_status.lower() == 'paid']
+        pending_students = [stu for stu in self.students if stu.fee_status.lower() == 'pending']
+        
+        if paid_students:
+            print(Fore.GREEN + '\n✅ Paid Students:')
+            table = []
+            for stu in paid_students:
+                table.append([
+                stu.get_student_id(),
+                stu.name,
+                stu.class_section,
+                stu.fee_status
+            ])
+            print("\n" + tabulate(table, headers=['ID','Name','Class','Fee'], tablefmt='fancy_grid', stralign='center'))
+        else:
+            print(Fore.RED + "\n❌ No students have paid their fees yet.")   
+        if pending_students:
+            print(Fore.GREEN + '\n✅ Pending Students:')
+            table = []
+            for stu in pending_students:
+                table.append([
+                stu.get_student_id(),
+                stu.name,
+                stu.class_section,
+                stu.fee_status
+            ])
+            print("\n" + tabulate(table, headers=['ID','Name','Class','Fee'], tablefmt='fancy_grid', stralign='center'))
+        else:
+            print(Fore.GREEN + "\n✅ All students have paid their fees.")  
+            
+    def report_top_students(self, Top_n = 5):
+        print_section("🏆 TOP STUDENTS REPORT 🏆", Fore.CYAN)
+        
+        if not self.students:
+            print(Fore.RED + "❌ No studens found.\n")
+            return
+        
+        student_with_avg = []
+        for stu in self.students:
+            if stu.marks:
+                avg_marks = sum(stu.marks.values()) / len(stu.marks)
+                student_with_avg.append((stu, avg_marks))
+                
+        if not student_with_avg:
+            print(Fore.RED + "❌ No marks found for any student.\n")
+            return  
+        
+        student_with_avg.sort(key=lambda x: x[1], reverse=True)
+        top_students = student_with_avg[:Top_n]
+        
+        table = []
+        for stu , avg in top_students:
+            grade = stu.calculate_grade() or 'N/A'
+            
+            table.append([
+                stu.get_student_id(),
+                stu.name,
+                stu.class_section,
+                round(avg, 2),
+                grade
+            ])
+        print('\n'+ tabulate(table, headers=['ID', 'Name', 'Class', 'Avg_Marks', 'Grade'], tablefmt='fancy_grid', stralign='center'))
+        
+    def search_students(self):
+        print_section('🔍 SEARCH STUDENTS', Fore.CYAN)
+        
+        if not self.students:
+            print(Fore.RED + '❌ No students found.\n')
+            return 
+        
+        print("Search by:\n1. ID\n2. Name\n3. Class")
+        choice = input("Enter option number:  ").strip()
+        
+        filtered_students = []
+        
+        if choice == '1':
+            student_id = input("Enter student ID: ").strip()
+            filtered_students = [stu for stu in self.students if stu.get_student_id().lower() == student_id.lower()]
+        
+        elif choice == '2':
+            name_query = input("Enter fullname or partial name: ").strip().lower()
+            filtered_students = [stu for stu in self.students if name_query in stu.name.lower()]
+        
+        elif choice == '3':
+            class_query = input("Enter class/section e.g., 10-A").strip().lower()
+            filtered_students = [stu for stu in self.students if stu.class_section.lower() == class_query]
+            
+        else:
+            print(Fore.RED + "❌ Invalid Option")
+            
+        if not filtered_students:
+            print(Fore.RED + "❌ No student found matching your criteria.\n")
+            return
+        
+        table = []
+        for stu in filtered_students:
+            grade = stu.calculate_grade() or 'N/A'
+            
+            table.append([
+                stu.get_student_id(),
+                stu.name,
+                stu.class_section,
+                stu.fee_status,
+                grade
+            ])
+        print('\n'+ tabulate(table, headers=['ID', 'Name', 'Class', 'Fee', 'Grade'], tablefmt='fancy_grid', stralign='center'))
+    
+    def mark_attendance(self):
+        print_section("📑 MARK ATTENDANCE 📑", Fore.CYAN)
+        
+        if not self.students:
+            print(Fore.RED + "❌ No Students Found.\n")
+            return 
+        
+        date_str = input("Enter date (YYYY-MM-DD) or enter to keep today: ").strip()
+        
+        if not date_str:
+            date_str = datetime.now().strftime("%Y-%m-%d")
+            
+        if date_str not in self.attendance:
+            self.attendance[date_str] = {}
+            
+        for stu in self.students:
+            status = input(f'{stu.get_student_id()} - {stu.name} (P/A) ').strip().upper()
+            while status not in ['P', 'A']:
+                print(Fore.RED + "❌ Invalid input! Enter 'P' for Present and 'A' for absent.")
+                status = input(f'{stu.get_student_id()} - {stu.name} (P/A) ').strip().upper()        
+                
+            if status == 'P':
+                self.attendance[date_str][stu.get_student_id()] = 'Present'
+            else:
+                self.attendance[date_str][stu.get_student_id()] = 'Absent'
+        print(Fore.GREEN + f"✅ Attendance marked for {date_str}!\n")
+    
+    def save_attendance(self, filename='attendance.json'):
+        try:
+            with open(filename, 'w') as f:
+                json.dump(self.attendance, f, indent=4)
+            print(Fore.GREEN + f"🗃️ Attendance saved successfully to {filename}!\n")
+        except Exception as e:
+            print(Fore.RED + f"❌ Error saving attendance: {e}")
+    
+    def load_attendance(self, filename='attendance.json'):
+        if not os.path.exists(filename) or os.path.getsize(filename) == 0:
+            print(Fore.YELLOW + "⚠️ No existing attendance file found. Starting fresh!.\n")
+            self.attendance = {}
+            return
+        
+        try:
+            with open(filename, 'r') as f:
+                self.attendance = json.load(f)
+            print(Fore.GREEN + f"🗃️ Attendance loaded successfully from {filename}!\n" )
+        except Exception as e:
+            print(Fore.RED + f"❌ Error loading attendance: {e}")
+            self.attendance= {}
+        
