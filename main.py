@@ -178,7 +178,7 @@ def Login():
 
 if __name__ == '__main__':
     while True:
-        print("\n--- SCHOOL MANAGEMENT SYSTEM ---\n")
+        print("\n--- SCHOOL MANAGEMENT SYSTEM --- \n")
         print("1. Login")
         print("2. Exit")
         

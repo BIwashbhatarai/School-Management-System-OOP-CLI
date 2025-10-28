@@ -783,7 +783,7 @@ class SchoolManager:
         print("1. View by Date")
         print("2. View by student ID")
         
-        choice = input("Enter your choice (1/2: )").strip()
+        choice = input("Enter your choice (1/2: ): ").strip()
         
         if choice == '1':
             date_str = input("Enter date (YYYY-MM-DD): ").strip()
