@@ -29,7 +29,11 @@ def admin_menu():
         print("14. report_top_students")
         print("15. report_by_fee")
         print("16. report_by_class")
-        print("17. Log Out")
+        print("17. Add Admin")
+        print("18. List Admin")
+        print("19. Delete Admin")
+        print("20. Change Admin Role")
+        print("21. Log Out")
 
         choice = input("Enter your choice (1-17): ")
         
@@ -73,6 +77,21 @@ def admin_menu():
         elif choice == '16':
             manager.report_by_class()
         elif choice == '17':
+            name = input("Name of new admin: ").strip()
+            username = input("Username: ").strip()
+            password = input("Password: ").strip()
+            role = input("Role (admin/superadmin) [admin]: ").strip() or 'admin'
+            manager.add_admin(name,username,password,role)
+        elif choice == '18':
+            manager.list_admins()
+        elif choice == '19':
+            target  =  input("Enter username of admin to delete: ").strip()
+            manager.delete_admin(target)
+        elif choice == '20':
+            target = input("Enter username of admin to change role: ").strip()
+            new_role = input("Enter new role (admin/superadmin)").strip()
+            manager.change_admin_role(target,new_role)
+        elif choice == '21':
             print("Logging out...")
             break
         else:

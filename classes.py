@@ -227,44 +227,84 @@ class SchoolManager:
             'last_student_id': self.last_student_id,
             'last_teacher_id': self.last_teacher_id,
             'students': [stu.to_dict() for stu in self.students],
-            'teachers': [t.to_dict() for t in self.teachers]
+            'teachers': [t.to_dict() for t in self.teachers],
+            'admins' : self.admins
         }
+        try:
+            with open(self.data_file, 'w') as f:
+                json.dump(data, f, indent=4)
+            print(Fore.GREEN+ "🗃️ Data saved successfully!")
+        except Exception as e:
+            print( Fore.REd + f"❌ Error saving data: {e}")
         
-        with open(self.data_file, 'w') as f:
-            json.dump(data, f, indent=4)
-        print(Fore.GREEN+ "🗃️ Data saved successfully!")
             
     def load_data(self):
+        
+        default_admin = {
+            'name': 'Default-Admin',
+            'username': 'admin',
+            'password': sha256('1234'.encode()).hexdigest,
+            'role': 'superadmin',
+            'admin-id': 'ADM001'
+            
+        }
         if not os.path.exists(self.data_file) or os.path.getsize(self.data_file) == 0:
-            print("No existing datafile found. Starting fresh!")
+            self.last_student_id = 0
+            self.last_teacher_id = 0
+            self.students = []
+            self.teachers = []
+            self.attendance = {}
+            self.admins = [default_admin]
+            print(Fore.YELLOW + f"❌ No exisiting datafile found. starting fresh!")
+            self.save_data()
             return 
         try:
             with open(self.data_file, 'r') as f:
                 data = json.load(f)
-            self.last_student_id = data.get('last_student_id', 0)
-            self.last_teacher_id = data.get('last_teacher_id', 0)
-            
+        except Exception as e:
+            self.last_student_id = 0
+            self.last_teacher_id = 0
             self.students = []
-            for s in data.get('students', []):
-                student_id = s.get('student_id') or self.generate_student_id()
-                stu = Student(s['name'], s['contact'], student_id)
-                stu.marks = s.get('marks', {})
-                stu.fee_status = s.get('fee_status', 'Pending')
-                stu.class_section = s.get('class_section', 'N/A')
-                stu.password = s.get('password', sha256('4321'.encode()).hexdigest())
-                self.students.append(stu)
-
             self.teachers = []
-            for t_data in data.get('teachers', []):
-                teacher_id = t_data.get('teacher_id') or self.generate_teacher_id()
-                teacher = Teacher(t_data['name'], t_data['contact'], teacher_id, t_data.get('subjects', []))
-                teacher.role_description = t_data.get('role-description ', 'Teacher')
-                teacher.password = t_data.get('password',sha256('1234'.encode()).hexdigest())
-                self.teachers.append(teacher)
-            print(Fore.GREEN +" 🗃️ Data loaded successfully!\n")
-        except FileNotFoundError:
-                print(Fore.RED +'❌ No existing data found, starting fresh!')   
-                        
+            self.attendance = {}
+            self.admins = [default_admin]
+            return
+    
+        self.last_student_id = data.get('last_student_id', 0)
+        self.last_teacher_id = data.get('last_teacher_id', 0)
+            
+        self.students = []
+        for s in data.get('students', []):
+            student_id = s.get('student_id') or self.generate_student_id()
+            stu = Student(s['name'], s['contact'], student_id)
+            stu.marks = s.get('marks', {})
+            stu.fee_status = s.get('fee_status', 'Pending')
+            stu.class_section = s.get('class_section', 'N/A')
+            stu.password = s.get('password', sha256('4321'.encode()).hexdigest())
+            self.students.append(stu)
+
+        self.teachers = []
+        for t_data in data.get('teachers', []):
+            teacher_id = t_data.get('teacher_id') or self.generate_teacher_id()
+            teacher = Teacher(t_data['name'], t_data['contact'], teacher_id, t_data.get('subjects', []))
+            teacher.role_description = t_data.get('role-description ', 'Teacher')
+            teacher.password = t_data.get('password',sha256('1234'.encode()).hexdigest())
+            self.teachers.append(teacher)
+        
+        self.admins = data.get('admins', [default_admin])
+        normalized_admin = []
+        
+        for idx , a in enumerate(self.admins, start=1):
+            normalized_admin.append({
+                'name': a.get('name', f'Admin{idx}'),
+                'username': a.get('username', f'admin{idx}'),
+                'password': a.get('password', sha256('1234'.encode()).hexdigest()),
+                'role': a.get('role', 'admin'),
+                'admin-id': a.get('admin-id', f'ADM{idx:03d}')
+            })
+        self.admins = normalized_admin
+        
+        print(Fore.GREEN + "🗃️ Data loaded successfully (admins included.)")
     def add_student(self):
         print_section("Add Student",Fore.GREEN)
         name = input("Enter student name :")
@@ -710,6 +750,7 @@ class SchoolManager:
             else:
                 self.attendance[date_str][stu.get_student_id()] = 'Absent'
         print(Fore.GREEN + f"✅ Attendance marked for {date_str}!\n")
+        self.save_attendance()
     
     def save_attendance(self, filename='attendance.json'):
         try:
@@ -717,7 +758,7 @@ class SchoolManager:
                 json.dump(self.attendance, f, indent=4)
             print(Fore.GREEN + f"🗃️ Attendance saved successfully to {filename}!\n")
         except Exception as e:
-            print(Fore.RED + f"❌ Error saving attendance: {e}")
+            print(Fore.RED + f"❌ Error saving attendance: {e}\n")
     
     def load_attendance(self, filename='attendance.json'):
         if not os.path.exists(filename) or os.path.getsize(filename) == 0:
@@ -730,6 +771,107 @@ class SchoolManager:
                 self.attendance = json.load(f)
             print(Fore.GREEN + f"🗃️ Attendance loaded successfully from {filename}!\n" )
         except Exception as e:
-            print(Fore.RED + f"❌ Error loading attendance: {e}")
             self.attendance= {}
+            print(Fore.RED + f"❌ Error loading attendance: {e}")
+    
+    
+    def view_attendance(self):
+        print_section("📅 VIEW ATTENDANCE", Fore.CYAN)
+        if not self.attendance:
+            print(Fore.RED + "❌ No attendance record found.\n")
+            return 
+        print("1. View by Date")
+        print("2. View by student ID")
+        
+        choice = input("Enter your choice (1/2: )").strip()
+        
+        if choice == '1':
+            date_str = input("Enter date (YYYY-MM-DD): ").strip()
+            if date_str not in self.attendance:
+                print(Fore.RED + f"❌ No attendance found {date_str}")
+                return 
+            table = []
+            for sid , status in self.attendance[date_str].items():
+                stu = self.find_student_by_id(sid)
+                name = stu.name if stu else 'Unknown'
+                table.append([sid,name,status])
+            print("\n" + tabulate(table, headers=['ID', 'Name', 'Status'], tablefmt='fancy_grid', stralign='center'))
+                
+        elif choice == '2':
+            sid = input("Enter student ID: ").strip()
+            table= []
+            
+            for date, records in self.attendance.items():
+                if sid in records:
+                    table.append(records[sid])
+            if not table:
+                print(Fore.RED + f'❌ No attendance found for {sid}.\n')
+                return
+            print("\n" + tabulate(table, headers=["Date", "Status"], tablefmt="fancy_grid", stralign="center"))
+        else:
+            print("❌ Invalid choice.\n")    
+    def add_admin(self,name,username,password,role='admin'):
+        if not username and not password:
+            print(Fore.RED + "❌ username and Password are required.")
+            return False
+        
+        if any(a['username'] == username for a in self.admins):
+            print(Fore.RED + f"Admin with username {username} already exists.")
+            return False
+        
+        new_id = f"ADM{len(self.admins) + 1:03d}"
+        hashed = sha256(password.encode()).hexdigest()
+        self.admins.append({'name': name, 'username': username, 'password': hashed, 'role': role, 'admin_id': new_id})
+        self.save_data()
+        print(Fore.GREEN + f"Admin {username} added successfully with the role {role}.")
+        return True
+    
+    def list_admins(self):
+        if not getattr(self, 'admins', None):
+            print(Fore.YELLOW + "No admins configured.")
+            return
+        headers = ['Admin_ID', 'Name', 'Username', 'Role' ]
+        table = []
+        
+        for a in self.admins:
+            admin_id = a.get('admin_id')
+            name = a.get('name')
+            username = a.get('username')
+            role = a.get('role')
+            table.append([admin_id, name, username, role])
+        print_section("ADmins", Fore.CYAN)
+        print(tabulate(table, headers, tablefmt= 'fancy-grid', stralign='center'))
+        print()
+    
+    def delete_admin(self,username):
+        admin = next((a for a in self.admins if a['username'] == username),None)
+        if not admin:
+            print(Fore.RED + f"❌ No admin found with the username {username}.")
+            return
+        
+        if admin.get('role') == 'superadmin':
+            superadmins = [s for s in self.admins if s.get('role') == 'superadmin']
+            if len(superadmins) == 1:
+                print(Fore.RED + "❌ Cannot delete the last superadmin.")
+                return 
+        confirm = input(Fore.YELLOW + f"Delete admin '{username}' (role: {admin.get('role')})? Type 'yes' to confirm ").lower()
+        if confirm != 'yes':
+            print(Fore.RED + "❌ Deletion Cancelled.")
+            return
+        
+        self.admins.remove(admin)
+        self.save_data()
+        print(Fore.GREEN + f"✅ Admin {username} deleted sucessfully.")
+    
+    def change_admin_role(self, username_to_Change, new_role):
+        admin = next((a for a in self.admins if a['username'] == username_to_Change), None)
+        if not admin:
+            print(Fore.RED + f"❌ No admin found with the username {username_to_Change}.")
+            return
+        
+        old_role = admin.get('role','admin')
+        admin['role'] = new_role
+        self.save_data()
+        print(Fore.GREEN + f"✅ Admin {username_to_Change} role changed. {old_role} -> {new_role}")
+        return True
         
